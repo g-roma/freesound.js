@@ -7,7 +7,7 @@ var freesound = {
     _URI_SIMILAR_SOUNDS : '/sounds/<sound_id>/similar/',
     _URI_SEARCH : '/sounds/search/',
     _URI_CONTENT_SEARCH : '/sounds/content_search/',
-    _URI_GEOTAG : '/sounds/geotag',
+    _URI_GEOTAG : '/sounds/geotag/',
     _URI_USER : '/people/<user_name>/',
     _URI_USER_SOUNDS : '/people/<user_name>/sounds/',
     _URI_USER_PACKS : '/people/<user_name>/packs/',
