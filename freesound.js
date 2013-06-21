@@ -17,18 +17,18 @@ var freesound = {
     _URI_PACK_SOUNDS : '/packs/<pack_id>/sounds/',
 
     _make_uri : function(uri,args){
-        for (a in args) {uri = uri.replace(/<[\w_]+>/, args[a])};
+        for (var a in args) {uri = uri.replace(/<[\w_]+>/, args[a]);}
         return this.BASE_URI+uri;
     },
     _make_request : function(uri,success,error,params,wrapper){
         var fs = this;
 
-        if(uri.indexOf('?') == -1){ uri = uri+"?" }
+        if(uri.indexOf('?') == -1){ uri = uri+"?"; }
         uri = uri+"&api_key="+this.apiKey;
-        for(p in params){uri = uri+"&"+p+"="+params[p]};
+        for(var p in params){uri = uri+"&"+p+"="+params[p];}
         var xhr;
-        try {xhr = new XMLHttpRequest()}
-        catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP')};
+        try {xhr = new XMLHttpRequest();}
+        catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
         xhr.onreadystatechange = function(){
             if (xhr.readyState == 4 && xhr.status == 200){
                 var data = eval("(" + xhr.responseText + ")");
@@ -56,9 +56,9 @@ var freesound = {
     _make_sound_collection_object: function(col){
         var get_next_or_prev = function(which,success,error){
             freesound._make_request(which,success,error,null);
-        }
-        col.next_page = function(success,error){get_next_or_prev(this.next,success,error)};
-        col.previous_page = function(success,error){get_next_or_prev(this.previous,success,error)};
+        };
+        col.next_page = function(success,error){get_next_or_prev(this.next,success,error);};
+        col.previous_page = function(success,error){get_next_or_prev(this.previous,success,error);};
         return col;
     },
     _make_user_object: function(user){ // receives json object already "parsed" (via eval)
