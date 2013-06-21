@@ -16,6 +16,7 @@
     var freesound = {
         BASE_URI : "http://www.freesound.org/api",
         apiKey : '',
+        debug: false,
         _URI_SOUND : '/sounds/<sound_id>/',
         _URI_SOUND_ANALYSIS : '/sounds/<sound_id>/analysis/',
         _URI_SOUND_ANALYSIS_FILTER :'/sounds/<sound_id>/analysis/<filter>',
@@ -53,7 +54,7 @@
                     error();
                 }
             };
-            console.log(uri);
+            if(debug) console.log(uri);
             xhr.open('GET', uri);
             xhr.send(null);
         },
