@@ -1,6 +1,21 @@
+// Freesound API JavaScript Client
+// API documentation: http://www.freesound.org/docs/api/
+
+(function(name, definition) {
+// CommonJS + AMD + Browser global
+// http://stackoverflow.com/a/14033636/1729279
+    if (typeof module != 'undefined')
+        module.exports = definition();
+    else if (typeof define == 'function' && typeof define.amd == 'object')
+        define(name,[],definition);
+    else
+        this[name] = definition();
+}('freesound', function() {
+
 var freesound = {
     BASE_URI : "http://www.freesound.org/api",
     apiKey : '',
+    debug: false,
     _URI_SOUND : '/sounds/<sound_id>/',
     _URI_SOUND_ANALYSIS : '/sounds/<sound_id>/analysis/',
     _URI_SOUND_ANALYSIS_FILTER :'/sounds/<sound_id>/analysis/<filter>',
@@ -17,18 +32,18 @@ var freesound = {
     _URI_PACK_SOUNDS : '/packs/<pack_id>/sounds/',
 
     _make_uri : function(uri,args){
-        for (a in args) {uri = uri.replace(/<[\w_]+>/, args[a])};
+        for (var a in args) {uri = uri.replace(/<[\w_]+>/, args[a]);}
         return this.BASE_URI+uri;
     },
     _make_request : function(uri,success,error,params,wrapper){
         var fs = this;
 
-        if(uri.indexOf('?') == -1){ uri = uri+"?" }
+        if(uri.indexOf('?') == -1){ uri = uri+"?"; }
         uri = uri+"&api_key="+this.apiKey;
-        for(p in params){uri = uri+"&"+p+"="+params[p]};
+        for(var p in params){uri = uri+"&"+p+"="+params[p];}
         var xhr;
-        try {xhr = new XMLHttpRequest()}
-        catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP')};
+        try {xhr = new XMLHttpRequest();}
+        catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
         xhr.onreadystatechange = function(){
             if (xhr.readyState == 4 && xhr.status == 200){
                 var data = eval("(" + xhr.responseText + ")");
@@ -38,7 +53,7 @@ var freesound = {
                 error();
             }
         };
-        console.log(uri);
+        if(this.debug) console.log(uri);
         xhr.open('GET', uri);
         xhr.send(null);
     },
@@ -49,24 +64,25 @@ var freesound = {
             freesound._make_request(freesound._make_uri(base_uri,[snd.id,filter?filter:""]),success,error);
         };
         snd.get_similar_sounds = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_SIMILAR_SOUNDS,[snd.id]),success,error);
+            freesound._make_request(
+                freesound._make_uri(freesound._URI_SIMILAR_SOUNDS,[snd.id]),success,error,{},this._make_collection_object);
         };
         return snd;
     },
-    _make_sound_collection_object: function(col){
+    _make_collection_object: function(col){
         var get_next_or_prev = function(which,success,error){
-            freesound._make_request(which,success,error,null);
-        }
-        col.next_page = function(success,error){get_next_or_prev(this.next,success,error)};
-        col.previous_page = function(success,error){get_next_or_prev(this.previous,success,error)};
+            freesound._make_request(which,success,error,{},this._make_collection_object);
+        };
+        col.next_page = function(success,error){get_next_or_prev(this.next,success,error);};
+        col.previous_page = function(success,error){get_next_or_prev(this.previous,success,error);};
         return col;
     },
     _make_user_object: function(user){ // receives json object already "parsed" (via eval)
         user.get_sounds = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_USER_SOUNDS,[user.username]),success,error);
+            freesound._make_request(freesound._make_uri(freesound._URI_USER_SOUNDS,[user.username]),success,error,{},this._make_collection_object);
         };
         user.get_packs = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_USER_PACKS,[user.username]),success,error);
+            freesound._make_request(freesound._make_uri(freesound._URI_USER_PACKS,[user.username]),success,error,{},this._make_pack_collection_object);
         };
         user.get_bookmark_categories = function(success, error){
             freesound._make_request(freesound._make_uri(freesound._URI_USER_BOOKMARKS,[user.username]),success,error);
@@ -78,7 +94,7 @@ var freesound = {
     },
     _make_pack_object: function(pack){ // receives json object already "parsed" (via eval)
         pack.get_sounds = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_PACK_SOUNDS,[pack.id]),success,error);
+            freesound._make_request(freesound._make_uri(freesound._URI_PACK_SOUNDS,[pack.id]),success,error,{},this._make_collection_object);
         };
         return pack;
     },
@@ -106,7 +122,7 @@ var freesound = {
         if(num_results)params.num_results = num_results;
         if(sounds_per_page)params.sounds_per_page = sounds_per_page;
         if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_SEARCH), success,error,params, this._make_sound_collection_object);
+        this._make_request(this._make_uri(this._URI_SEARCH), success,error,params, this._make_collection_object);
     },
     content_based_search: function(target, filter, max_results, fields, page, sounds_per_page, success, error){
         var params = {};
@@ -116,7 +132,7 @@ var freesound = {
         if(max_results)params.max_results = max_results;
         if(sounds_per_page)params.sounds_per_page = sounds_per_page;
         if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_CONTENT_SEARCH), success,error,params, this._make_sound_collection_object);
+        this._make_request(this._make_uri(this._URI_CONTENT_SEARCH), success,error,params, this._make_collection_object);
     },
     geotag: function(min_lat, max_lat, min_lon, max_lon, page, fields, sounds_per_page, success, error){
         var params = {};
@@ -127,6 +143,9 @@ var freesound = {
         if(page)params.p=page;
         if(sounds_per_page)params.sounds_per_page = sounds_per_page;
         if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_GEOTAG), success,error,params, this._make_sound_collection_object);
+        this._make_request(this._make_uri(this._URI_GEOTAG), success,error,params, this._make_collection_object);
     }
 };
+    return freesound;
+}));
+
