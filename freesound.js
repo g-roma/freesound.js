@@ -4,18 +4,24 @@
 (function(name, definition) {
 // CommonJS + AMD + Browser global
 // http://stackoverflow.com/a/14033636/1729279
-    if (typeof module != 'undefined')
+    if (typeof module != 'undefined'){
         module.exports = definition();
+    }
     else if (typeof define == 'function' && typeof define.amd == 'object')
         define(name,[],definition);
     else
         this[name] = definition();
 }('freesound', function() {
 
+var request;
+if (typeof module != 'undefined'){ 
+    request = require("request");
+}
+
 var freesound = {
     BASE_URI : "http://www.freesound.org/api",
     apiKey : '',
-    debug: false,
+    debug: true,
     _URI_SOUND : '/sounds/<sound_id>/',
     _URI_SOUND_ANALYSIS : '/sounds/<sound_id>/analysis/',
     _URI_SOUND_ANALYSIS_FILTER :'/sounds/<sound_id>/analysis/<filter>',
@@ -37,25 +43,44 @@ var freesound = {
     },
     _make_request : function(uri,success,error,params,wrapper){
         var fs = this;
-
+        var parse_response = function(response){
+            var data = eval("(" + response + ")");
+            success(wrapper?wrapper(data):data);
+        }
         if(uri.indexOf('?') == -1){ uri = uri+"?"; }
         uri = uri+"&api_key="+this.apiKey;
         for(var p in params){uri = uri+"&"+p+"="+params[p];}
-        var xhr;
-        try {xhr = new XMLHttpRequest();}
-        catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
-        xhr.onreadystatechange = function(){
-            if (xhr.readyState == 4 && xhr.status == 200){
-                var data = eval("(" + xhr.responseText + ")");
-                success(wrapper?wrapper(data):data);
-            }
-            else if (xhr.readyState == 4 && xhr.status != 200){
-                error();
-            }
-        };
         if(this.debug) console.log(uri);
-        xhr.open('GET', uri);
-        xhr.send(null);
+
+        if (request){ // node
+            request(uri, {
+                json: true,
+                qs: params
+                }, function(e, r, data) {
+                    if (!e) {
+                        if(success) success(wrapper?wrapper(data):data);
+                    } else {
+                        if(error) error(e);
+                    }
+                }
+            );
+        }
+        else{ // browser
+            var xhr;
+            try {xhr = new XMLHttpRequest();}
+            catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
+            xhr.onreadystatechange = function(){
+                if (xhr.readyState == 4 && xhr.status == 200){
+                    var data = eval("(" + xhr.responseText + ")");
+                    if(success) success(wrapper?wrapper(data):data);
+                }
+                else if (xhr.readyState == 4 && xhr.status != 200){
+                    if(error) error(xhr.statusText);
+                }
+            };
+            xhr.open('GET', uri);
+            xhr.send(null);
+        }
     },
     _make_sound_object: function(snd){ // receives json object already "parsed" (via eval)
         snd.get_analysis = function(showAll, filter, success, error){
@@ -94,7 +119,7 @@ var freesound = {
     },
     _make_pack_object: function(pack){ // receives json object already "parsed" (via eval)
         pack.get_sounds = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_PACK_SOUNDS,[pack.id]),success,error,{},this._make_collection_object);
+            freesound._make_request(pack.sounds,success,error,{},this._make_collection_object);
         };
         return pack;
     },
