@@ -1,176 +1,346 @@
-// Freesound API JavaScript Client
-// API documentation: http://www.freesound.org/docs/api/
+(function () {
 
-(function(name, definition) {
-// CommonJS + AMD + Browser global
-// http://stackoverflow.com/a/14033636/1729279
-    if (typeof module != 'undefined'){
-        module.exports = definition();
-    }
-    else if (typeof define == 'function' && typeof define.amd == 'object')
-        define(name,[],definition);
-    else
-        this[name] = definition();
-}('freesound', function() {
+    var freesound = function () {        
+        var authHeader = '';
+        var clientId = '';
+        var clientSecret = '';
+        var host = 'test.freesound.org';
 
-var request;
-if (typeof module != 'undefined'){ 
-    request = require("request");
-}
+        var uris = {
+            base : 'https://'+host+'/apiv2',
+            textSearch : '/search/text/',
+            contentSearch: '/search/content/',
+            combinedSearch : '/sounds/search/combined/',
+            sound : '/sounds/<sound_id>/',
+            soundAnalysis : '/sounds/<sound_id>/analysis/',
+            similarSounds : '/sounds/<sound_id>/similar/',
+            comments : '/sounds/<sound_id>/comments/',
+            download : '/sounds/<sound_id>/download/',
+            upload : '/sounds/upload/',
+            describe : '/sounds/<sound_id>/describe/',
+            pending : '/sounds/pending_uploads/',
+            bookmark : '/sounds/<sound_id>/bookmark/',
+            rate : '/sounds/<sound_id>/rate/',
+            comment : '/sounds/<sound_id>/comment/',
+            authorize : '/oauth2/authorize/',
+            logout : '/api-auth/logout/',
+            logoutAuthorize : '/oauth2/logout_and_authorize/',
+            me : '/me/',
+            user : '/users/<username>/',
+            userSounds : '/users/<username>/sounds/',
+            userPacks : '/users/<username>/packs/',
+            userBookmarkCategories : '/users/<username>/bookmark_categories/',
+            userBookmarkCategorySounds : '/users/<username>/bookmark_categories/<category_id>/sounds/',
+            pack : '/packs/<pack_id>/',
+            packSounds : '/packs/<pack_id>/sounds/',
+            packDownload : '/packs/<pack_id>/download/'            
+        };
+        
+        var makeUri = function (uri, args){
+            for (var a in args) {uri = uri.replace(/<[\w_]+>/, args[a]);}
+            return uris.base+uri;
+        };
 
-var freesound = {
-    BASE_URI : "http://www.freesound.org/api",
-    apiKey : '',
-    debug: true,
-    _URI_SOUND : '/sounds/<sound_id>/',
-    _URI_SOUND_ANALYSIS : '/sounds/<sound_id>/analysis/',
-    _URI_SOUND_ANALYSIS_FILTER :'/sounds/<sound_id>/analysis/<filter>',
-    _URI_SIMILAR_SOUNDS : '/sounds/<sound_id>/similar/',
-    _URI_SEARCH : '/sounds/search/',
-    _URI_CONTENT_SEARCH : '/sounds/content_search/',
-    _URI_GEOTAG : '/sounds/geotag/',
-    _URI_USER : '/people/<user_name>/',
-    _URI_USER_SOUNDS : '/people/<user_name>/sounds/',
-    _URI_USER_PACKS : '/people/<user_name>/packs/',
-    _URI_USER_BOOKMARKS : '/people/<username>/bookmark_categories',
-    _URI_BOOKMARK_CATEGORY_SOUNDS : '/people/<username>/bookmark_categories/<category_id>/sounds',
-    _URI_PACK : '/packs/<pack_id>/',
-    _URI_PACK_SOUNDS : '/packs/<pack_id>/sounds/',
+        var makeRequest = function (uri, success, error, params, wrapper, method, data, content_type){
+            if(method===undefined) method='GET';
+            if(!error)error = function(e){console.log(e)};
+            var fs = this;
+            var parse_response = function (response){
+                var data = eval("(" + response + ")");
+                success(wrapper?wrapper(data):data);
+            };                      
+            var paramStr = "";
+            for(var p in params){paramStr = paramStr+"&"+p+"="+params[p];}
+            if (paramStr){
+                uri = uri +"?"+ paramStr;
+            }
+            
+            if (typeof module !== 'undefined'){ // node.js
+                var http = require("http");
+                var options = {
+                    host: host,
+                    path: uri.substring(uri.indexOf("/",8),uri.length), // first '/' after 'http://'
+                    port: '80',
+                    method: method,
+                    headers: {'Authorization': authHeader}
+                };
+                var req = http.request(options,function(res){
+                    res.setEncoding('utf8');            
+                    res.on('data', function (data){ 
+                        if([200,201,202].indexOf(res.statusCode)>=0)
+                            success(wrapper?wrapper(data):data);
+                        else   
+                            error(data);
+                    });                    
+                });                
+                req.on('error', error).end();
+            }
+            else{ // browser
+                var xhr;
+                try {xhr = new XMLHttpRequest();}
+                catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
 
-    _make_uri : function(uri,args){
-        for (var a in args) {uri = uri.replace(/<[\w_]+>/, args[a]);}
-        return this.BASE_URI+uri;
-    },
-    _make_request : function(uri,success,error,params,wrapper){
-        var fs = this;
-        var parse_response = function(response){
-            var data = eval("(" + response + ")");
-            success(wrapper?wrapper(data):data);
-        }
-        if(uri.indexOf('?') == -1){ uri = uri+"?"; }
-        uri = uri+"&api_key="+this.apiKey;
-        for(var p in params){uri = uri+"&"+p+"="+params[p];}
-        if(this.debug) console.log(uri);
-
-        if (request){ // node
-            request(uri, {
-                json: true,
-                qs: params
-                }, function(e, r, data) {
-                    if (!e) {
+                xhr.onreadystatechange = function(){
+                    if (xhr.readyState === 4 && [200,201,202].indexOf(xhr.status)>=0){
+                        var data = eval("(" + xhr.responseText + ")");
                         if(success) success(wrapper?wrapper(data):data);
-                    } else {
-                        if(error) error(e);
+                    }
+                    else if (xhr.readyState === 4 && xhr.status !== 200){
+                        if(error) error(xhr.statusText);
+                    }
+                };
+                xhr.open(method, uri);
+                xhr.setRequestHeader('Authorization',authHeader);
+                if(content_type!==undefined)
+                    xhr.setRequestHeader('Content-Type',content_type);
+                xhr.send(data);
+            }
+    };
+    var checkOauth = function(){
+        if(authHeader.indexOf("Bearer")==-1)
+            throw("Oauth authentication required");
+    };
+        
+    var makeFD = function(obj,fd){
+        if(!fd)
+            fd = new FormData(); 
+        for (var prop in obj){
+            fd.append(prop,obj[prop])
+        }
+        return fd;
+    };
+    
+    var search = function(options, uri, success, error,wrapper){  
+        if(options.analysis_file){ 
+                makeRequest(makeUri(uri), success,error,null, wrapper, 'POST',makeFD(options));
+        }
+        else{
+                makeRequest(makeUri(uri), success,error,options, wrapper);
+        }    
+    };
+        
+    var Collection = function (jsonObject){
+        var nextOrPrev = function (which,success,error){
+            makeRequest(which,success,error,{}, Collection);
+        };        
+        jsonObject.nextPage = function (success,error){
+            nextOrPrev(jsonObject.next,success,error);
+        };
+        jsonObject.previousPage = function (success,error){
+            nextOrPrev(jsonObject.previous,success,error);
+        };
+        jsonObject.getItem = function (idx){
+            return jsonObject.results[idx];
+        }
+        
+        return jsonObject;
+    };  
+        
+    var SoundCollection = function(jsonObject){
+        var collection = Collection(jsonObject);
+        collection.getSound = function (idx){
+            return new SoundObject(collection.results[idx]);
+        };
+        return collection;
+    };
+    
+    var PackCollection = function(jsonObject){
+        var collection = Collection(jsonObject);
+        collection.getPack = function (idx){
+            return new PackObject(collection.results[idx]);
+        };   
+        return collection;
+    };
+        
+    var SoundObject = function (jsonObject){ 
+        jsonObject.getAnalysis = function(filter, success, error, showAll){
+            var params = {all: showAll?1:0};
+            makeRequest(makeUri(uris.soundAnalysis,[jsonObject.id,filter?filter:""]),success,error);
+        };
+
+        jsonObject.getSimilar = function (success, error, params){
+            makeRequest(makeUri(uris.similarSounds,[jsonObject.id]),success,error, params,SoundCollection);
+        };
+ 
+       jsonObject.getComments = function (success, error){
+            makeRequest(makeUri(uris.comments,[jsonObject.id]),success,error,{},Collection);
+       };
+
+       jsonObject.download = function (targetWindow){// can be window, new, or iframe
+            checkOauth();
+            var uri = makeUri(uris.download,[jsonObject.id]);
+            targetWindow.location = uri;
+       };
+       
+	jsonObject.comment = function (commentStr, success, error){
+            checkOauth();
+            var data = new FormData();
+            data.append('comment', comment);
+            var uri = makeUri(uris.comment,[jsonObject.id]);
+            makeRequest(uri, success, error, {}, null, 'POST', data);
+        };
+
+        jsonObject.rate = function (rating, success, error){
+            checkOauth();
+            var data = new FormData();
+            data.append('rating', rating);
+            var uri = makeUri(uris.rate,[jsonObject.id]);
+            makeRequest(uri, success, error, {}, null, 'POST', data);
+        };
+
+        jsonObject.bookmark = function (name, category,success, error){
+            checkOauth();
+            var data = new FormData();
+            data.append('name', name);
+            if(category)
+                data.append("category",category);
+            var uri = makeUri(uris.bookmark,[jsonObject.id]);            
+            makeRequest(uri, success, error, {}, null, 'POST', data);
+        };
+        
+        jsonObject.edit = function (description,success, error){
+            checkOauth();
+            var data = makeFD(description);
+            var uri = makeUri(uris.edit,[jsonObject.id]);
+            makeRequest(uri, success, error, {}, null, 'POST', data);
+        };        
+
+        return jsonObject;
+    };
+    var UserObject = function(jsonObject){
+        jsonObject.sounds = function (success, error, params){
+            var uri = makeUri(uris.userSounds,[jsonObject.username]);
+            makeRequest(uri, success, error,params,SoundCollection);            
+        };
+
+        jsonObject.packs = function (success, error){
+            var uri = makeUri(uris.userPacks,[jsonObject.username]);
+            makeRequest(uri, success, error,{},PackCollection);                    
+        };
+
+        jsonObject.bookmarkCategories = function (success, error){
+            var uri = makeUri(uris.userBookmarkCategories,[jsonObject.username]);
+            makeRequest(uri, success, error);                    
+        };
+
+        jsonObject.bookmarkCategorySounds = function (success, error,params){
+            var uri = makeUri(uris.userBookmarkCategorySounds,[jsonObject.username]);
+            makeRequest(uri, success, error,params);                    
+        };
+
+        return jsonObject;
+    };
+        
+    var PackObject = function(jsonObject){
+        jsonObject.sounds = function (success, error){
+            var uri = makeUri(uris.packSounds,[jsonObject.id]);
+            makeRequest(uri, success, error,{},SoundCollection);            
+        };
+        
+        jsonObject.download = function (targetWindow){// can be current or new window, or iframe
+            checkOauth();
+            var uri = makeUri(uris.packDownload,[jsonObject.id]);
+            targetWindow.location = uri;
+        };                
+        return jsonObject;
+    };
+                
+    return {
+            // authentication
+            setToken: function (token, type) {
+                authHeader = (type==='oauth' ? 'Bearer ':'Token ')+token;
+            },
+            setClientSecrets: function(id,secret){
+                clientId = id;
+                clientSecret = secret;
+            },
+
+            postAccessCode: function(code, success, error){
+                var post_url = uris.base+"/oauth2/access_token/"
+                var data = new FormData();
+                data.append('client_id',clientId);
+                data.append('client_secret',clientSecret);
+                data.append('code',code);
+                data.append('grant_type','authorization_code');
+                                
+                if (!success){
+                    success = function(result){
+                        setToken(result.access_token,'oauth');                        
                     }
                 }
-            );
-        }
-        else{ // browser
-            var xhr;
-            try {xhr = new XMLHttpRequest();}
-            catch (e) {xhr = new ActiveXObject('Microsoft.XMLHTTP');}
-            xhr.onreadystatechange = function(){
-                if (xhr.readyState == 4 && xhr.status == 200){
-                    var data = eval("(" + xhr.responseText + ")");
-                    if(success) success(wrapper?wrapper(data):data);
-                }
-                else if (xhr.readyState == 4 && xhr.status != 200){
-                    if(error) error(xhr.statusText);
-                }
-            };
-            xhr.open('GET', uri);
-            xhr.send(null);
-        }
-    },
-    _make_sound_object: function(snd){ // receives json object already "parsed" (via eval)
-        snd.get_analysis = function(showAll, filter, success, error){
-            var params = {all: showAll?1:0};
-            var base_uri = filter? freesound._URI_SOUND_ANALYSIS_FILTER:freesound._URI_SOUND_ANALYSIS;
-            freesound._make_request(freesound._make_uri(base_uri,[snd.id,filter?filter:""]),success,error);
-        };
-        snd.get_similar_sounds = function(success, error){
-            freesound._make_request(
-                freesound._make_uri(freesound._URI_SIMILAR_SOUNDS,[snd.id]),success,error,{},this._make_collection_object);
-        };
-        return snd;
-    },
-    _make_collection_object: function(col){
-        var get_next_or_prev = function(which,success,error){
-            freesound._make_request(which,success,error,{},this._make_collection_object);
-        };
-        col.next_page = function(success,error){get_next_or_prev(this.next,success,error);};
-        col.previous_page = function(success,error){get_next_or_prev(this.previous,success,error);};
-        return col;
-    },
-    _make_user_object: function(user){ // receives json object already "parsed" (via eval)
-        user.get_sounds = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_USER_SOUNDS,[user.username]),success,error,{},this._make_collection_object);
-        };
-        user.get_packs = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_USER_PACKS,[user.username]),success,error,{},this._make_pack_collection_object);
-        };
-        user.get_bookmark_categories = function(success, error){
-            freesound._make_request(freesound._make_uri(freesound._URI_USER_BOOKMARKS,[user.username]),success,error);
-        };
-        user.get_bookmark_category_sounds = function(ref, success, error){
-            freesound._make_request(ref,success,error);
-        };
-        return user;
-    },
-    _make_pack_object: function(pack){ // receives json object already "parsed" (via eval)
-        pack.get_sounds = function(success, error){
-            freesound._make_request(pack.sounds,success,error,{},this._make_collection_object);
-        };
-        return pack;
-    },
-    /************* "Public" interface *****************/
-    get_from_ref : function(ref, success,error){
-        this._make_request(ref,success,error,{});
-    },
-    get_sound : function(soundId, success,error){
-        this._make_request(this._make_uri(this._URI_SOUND,[soundId]),success,error,{},this._make_sound_object);
-    },
-    get_user : function(username, success,error){
-        this._make_request(this._make_uri(this._URI_USER,[username]),success,error,{},this._make_user_object);
-    },
-    get_pack : function(packId, success,error){
-        this._make_request(this._make_uri(this._URI_PACK,[packId]),success,error,{},this._make_pack_object);
-    },
-    quick_search : function(query,success,error){
-        this.search(query,0,null,null,success,error);
-    },
-    search: function(query, page, filter, sort, num_results, fields, sounds_per_page, success, error){
-        var params = {q:(query ? query : " ")};
-        if(page)params.p=page;
-        if(filter)params.f = filter;
-        if(sort)params.s = sort;
-        if(num_results)params.num_results = num_results;
-        if(sounds_per_page)params.sounds_per_page = sounds_per_page;
-        if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_SEARCH), success,error,params, this._make_collection_object);
-    },
-    content_based_search: function(target, filter, max_results, fields, page, sounds_per_page, success, error){
-        var params = {};
-        if(page)params.p=page;
-        if(filter)params.f = filter;
-        if(target)params.t = target;
-        if(max_results)params.max_results = max_results;
-        if(sounds_per_page)params.sounds_per_page = sounds_per_page;
-        if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_CONTENT_SEARCH), success,error,params, this._make_collection_object);
-    },
-    geotag: function(min_lat, max_lat, min_lon, max_lon, page, fields, sounds_per_page, success, error){
-        var params = {};
-        if(min_lat)params.min_lat=min_lat;
-        if(max_lat)params.max_lat=max_lat;
-        if(min_lon)params.min_lon=min_lon;
-        if(max_lon)params.max_lon=max_lon;
-        if(page)params.p=page;
-        if(sounds_per_page)params.sounds_per_page = sounds_per_page;
-        if(fields)params.fields = fields;
-        this._make_request(this._make_uri(this._URI_GEOTAG), success,error,params, this._make_collection_object);
-    }
-};
-    return freesound;
-}));
+                makeRequest(post_url, success, error, {}, null, 'POST', data);
+            },
+            textSearch: function(query, options, success, error){                
+                options = options || {};
+                options.query = query ? query : " ";
+                search(options,uris.textSearch,success,error,SoundCollection);
+            },                    
+            contentSearch: function(options, success, error){
+                if(!(options.target || options.analysis_file))
+                   throw("Missing target or analysis_file");
+                search(options,uris.contentSearch,success,error,SoundCollection);
+            },
+            combinedSearch:function(options, success, error){
+               if(!(options.target || options.analysis_file || options.query))
+                   throw("Missing query, target or analysis_file");
+                search(options,uris.contentSearch,success,error);
+            },
+            getSound: function(soundId,success, error){
+                makeRequest(makeUri(uris.sound, [soundId]), success,error,{}, SoundObject);
+            },
 
+            upload: function(audiofile,filename, description, success,error){
+                checkOauth();
+                var fd = new FormData();
+                fd.append('audiofile', audiofile,filename);                    
+                if(description){                    
+                    fd = makeFD(description,fd);
+                }
+                makeRequest(makeUri(uris.upload), success, error, {}, null, 'POST', fd);
+            },
+            describe: function(upload_filename , description, license, tags, success,error){
+                checkOauth();                
+                var fd = makeFD(description);
+                makeRequest(makeUri(uris.upload), success, error, {}, null, 'POST', fd);
+            },
+
+            getPendingSounds: function(success,error){
+                checkOauth();
+                makeRequest(makeUri(uris.pending), success,error,{});
+            },
+
+            // user resources
+            me: function(success,error){
+                checkOauth();
+                makeRequest(makeUri(uris.me), success,error);
+            },
+
+            getLoginURL: function(){
+                    if(clientId===undefined) throw "client_id was not set"
+                    var login_url = makeUri(uris.authorize);
+                    login_url += "?client_id="+clientId+"&response_type=code";
+                    return login_url;
+            },
+            getLogoutURL: function(){
+                var logout_url = makeUri(uris.logoutAuthorize);
+                logout_url += "?client_id="+clientId+"&response_type=code";
+                
+                return logout_url;
+            },
+
+            getUser: function(username, success,error){
+                makeRequest(makeUri(uris.user, [username]), success,error,{}, UserObject);
+            },
+        
+            getPack: function(packId,success,error){                
+                makeRequest(makeUri(uris.pack, [packId]), success,error,{}, PackObject);            
+            }        
+        }    
+    };
+
+    // compatible with CommonJS (node), AMD (requireJS) failing back to browser global 
+    // working with node requires web-audio-api module
+    if (typeof module !== 'undefined') {module.exports = freesound(); }
+    else if (typeof define === 'function' && typeof define.amd === 'object') { define("freesound", [], freesound); }
+    else {this.freesound = freesound(); }
+}());
