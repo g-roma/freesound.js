@@ -4,7 +4,7 @@
         var authHeader = '';
         var clientId = '';
         var clientSecret = '';
-        var host = 'test.freesound.org';
+        var host = 'freesound.org';
 
         var uris = {
             base : 'https://'+host+'/apiv2',
