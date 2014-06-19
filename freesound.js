@@ -44,6 +44,8 @@
         var makeRequest = function (uri, success, error, params, wrapper, method, data, content_type){
             if(method===undefined) method='GET';
             if(!error)error = function(e){console.log(e)};
+            params = params || {};
+            params['format'] = 'json';
             var fs = this;
             var parse_response = function (response){
                 var data = eval("(" + response + ")");
