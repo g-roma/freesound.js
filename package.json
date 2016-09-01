@@ -1,0 +1,15 @@
+{
+    "name": "freesound",
+    "version": "0.0.3",
+    "description": "Javascript wrapper of the Freesound API",
+    "main": "freesound.js",
+    "author": "Gerard Roma",
+    "keywords": ["freesound", "audio", "api"],
+    "repository" : {
+        "type": "git",
+        "url": "https://github.com/g-roma/freesound.js.git"
+    },
+    "dependencies": {
+        "web-audio-api": "*"
+    }
+}
