@@ -77,7 +77,7 @@
                             success(wrapper?wrapper(data):data);
                         else   
                             error(data);
-                    })
+                    });
                 });                
                 req.on('error', error).end();
             }
