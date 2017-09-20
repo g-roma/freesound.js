@@ -67,13 +67,17 @@
                     headers: {'Authorization': authHeader}
                 };
                 var req = http.request(options,function(res){
+                	var result = '';
                     res.setEncoding('utf8');            
                     res.on('data', function (data){ 
-                        if([200,201,202].indexOf(res.statusCode)>=0)
+                        result += data;
+                    });
+                    res.on('end', function() {
+                    	if([200,201,202].indexOf(res.statusCode)>=0)
                             success(wrapper?wrapper(data):data);
                         else   
                             error(data);
-                    });                    
+                    });
                 });                
                 req.on('error', error).end();
             }
