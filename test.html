@@ -69,7 +69,6 @@
         var filter = "tag:tenuto duration:[1.0 TO 15.0]"
         var sort = "rating_desc"
         var descriptors = "lowlevel.spectral_centroid"
-console.log(descriptors)
         freesound.textSearch(query, {page:page, filter:filter, sort:sort, fields:fields, descriptors: descriptors},
             function(sounds){
                 var msg = ""
