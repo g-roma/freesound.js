@@ -92,7 +92,7 @@
                         if(success) success(wrapper?wrapper(data):data);
                     }
                     else if (xhr.readyState === 4 && xhr.status !== 200){
-                        if(error) error(xhr.statusText);
+                        if(error) error(xhr);
                     }
                 };
                 xhr.open(method, uri);
