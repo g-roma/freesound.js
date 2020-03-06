@@ -12,7 +12,7 @@
 
         freesound.setToken("YOUR_API_KEY_HERE");
         
-        var fields = 'id,name,url';
+        var fields = 'id,name,url,analysis,username';
         // Example 1
         // Example of geeting the info of a sound, queying for similar sounds (content based) and showing some analysis
         // features. Both similar sounds and analysis features are obtained with additional requests to the api.
@@ -63,12 +63,13 @@
         
         
         // Example 2
-        // Example of searching sounds: querying the freesound db for sounds
+        // Example of searching sounds: querying the freesound db for sounds and retrieving lowlevel descriptors
         var query = "violoncello"
         var page = 1
         var filter = "tag:tenuto duration:[1.0 TO 15.0]"
         var sort = "rating_desc"
-        freesound.textSearch(query, {page:page, filter:filter, sort:sort, fields:fields},
+        var descriptors = "lowlevel.spectral_centroid"
+        freesound.textSearch(query, {page:page, filter:filter, sort:sort, fields:fields, descriptors: descriptors},
             function(sounds){
                 var msg = ""
                 
@@ -77,7 +78,7 @@
                 msg += "Num results: " + sounds.count + "<br><ul>"
                 for (i =0;i<=10;i++){  
                     var snd = sounds.getSound(i);
-                    msg += "<li>" + snd.name + " by " + snd.username + "</li>"
+                    msg += "<li>" + snd.name + " by " + snd.username + " with spectral centroid mean value: " + snd.analysis.lowlevel.spectral_centroid.mean.toString() + "</li>"
                 }
                 msg += "</ul>"
                 displayMessage(msg,"resp2")
