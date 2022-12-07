@@ -58,15 +58,14 @@
             }
             
             if (typeof module !== 'undefined'){ // node.js
-                var http = require("http");
+                var https = require("https");
                 var options = {
                     host: host,
                     path: uri.substring(uri.indexOf("/",8),uri.length), // first '/' after 'http://'
-                    port: '80',
                     method: method,
                     headers: {'Authorization': authHeader}
                 };
-                var req = http.request(options,function(res){
+                var req = https.request(options,function(res){
                 	var result = '';
                     res.setEncoding('utf8');            
                     res.on('data', function (data){ 
@@ -74,7 +73,7 @@
                     });
                     res.on('end', function() {
                     	if([200,201,202].indexOf(res.statusCode)>=0)
-                            success(wrapper?wrapper(data):data);
+                            success(wrapper?wrapper(result):result);
                         else   
                             error(data);
                     });
