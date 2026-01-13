@@ -10,7 +10,7 @@
 
     window.onload = function(){
 
-        freesound.setToken("YOUR_API_KEY_HERE"); // Replace with your API key
+        freesound.setToken(""); // Replace with your API key
         
         // Example 1
         // Example of geeting the info of a sound, queying for similar sounds (content based) and showing some analysis
@@ -68,7 +68,6 @@
         freesound.search(query, {page:page, filter:filter, sort:sort, fields:fields},
             function(sounds){
                 var msg = ""
-                
                 msg = "<h3>Searching for: " + query + "</h3>"
                 msg += "With filter: " + filter +" and sorting: " + sort + "<br>"
                 msg += "Num results: " + sounds.count + "<br><ul>"
@@ -83,14 +82,15 @@
         
         
         // Example 3
-        // Example of filtering search results using audio descriptors
-        var filter = "spectral_centroid:[1000 TO 2000] AND duration:[1 TO 5] AND tag:single-note";
+        // Example of sorting sounds using some audio descriptors target, and filtering using audio descriptors
+        var sortingTarget = "pitch_salience:1.0,pitch:440"
+        var filter = "pitch_var:[0 TO 20] AND duration:[1 TO 10] AND tag:single-note";
         var page_size  = 10;
-        var fields = 'id,name,url,username,spectral_centroid,duration,tags';
-        freesound.search("", {filter:filter, page_size:page_size, fields:fields},
+        var fields = 'id,name,url,username,pitch,pitch_salience,pitch_var,duration,tags';
+        freesound.search("", {filter:filter, page_size:page_size, fields:fields, sort:sortingTarget},
             function(sounds){                
                 var msg = ""
-                msg = "<h3>Filtering by audio descriptors and metadata</h3>"
+                msg = "<h3>Searching sounds by specifying audio descriptors as a target, and filtering by audio descriptor values and metadata</h3>"
                 msg += "Filter: " + filter +"<br>"
                 msg += "Fields: " + fields +"<br>"
                 msg += "Num results: " + sounds.count + "<br><ul>"
