@@ -8,9 +8,7 @@
 
         var uris = {
             base : 'https://'+host+'/apiv2',
-            textSearch : '/search/text/',
-            contentSearch: '/search/content/',
-            combinedSearch : '/sounds/search/combined/',
+            search : '/search/',
             sound : '/sounds/<sound_id>/',
             soundAnalysis : '/sounds/<sound_id>/analysis/',
             similarSounds : '/sounds/<sound_id>/similar/',
@@ -276,21 +274,11 @@
                 }
                 makeRequest(post_url, success, error, {}, null, 'POST', data);
             },
-            textSearch: function(query, options, success, error){                
+            search: function(query, options, success, error){                
                 options = options || {};
                 options.query = query ? query : " ";
-                search(options,uris.textSearch,success,error,SoundCollection);
+                search(options,uris.search,success,error,SoundCollection);
             },                    
-            contentSearch: function(options, success, error){
-                if(!(options.target || options.analysis_file))
-                   throw("Missing target or analysis_file");
-                search(options,uris.contentSearch,success,error,SoundCollection);
-            },
-            combinedSearch:function(options, success, error){
-               if(!(options.target || options.analysis_file || options.query))
-                   throw("Missing query, target or analysis_file");
-                search(options,uris.contentSearch,success,error);
-            },
             getSound: function(soundId,success, error){
                 makeRequest(makeUri(uris.sound, [soundId]), success,error,{}, SoundObject);
             },

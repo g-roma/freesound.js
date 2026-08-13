@@ -10,9 +10,8 @@
 
     window.onload = function(){
 
-        freesound.setToken("YOUR_API_KEY_HERE");
+        freesound.setToken(""); // Replace with your API key
         
-        var fields = 'id,name,url,analysis,username';
         // Example 1
         // Example of geeting the info of a sound, queying for similar sounds (content based) and showing some analysis
         // features. Both similar sounds and analysis features are obtained with additional requests to the api.
@@ -37,8 +36,8 @@
                     // When we have printed some sound info, ask for analysis
                     sound.getAnalysis(null,function(analysis){
                         msg += "<strong>Mfccs:</strong><ul>";
-                        for (i in analysis.lowlevel.mfcc.mean){
-                            msg += "<li>" + analysis.lowlevel.mfcc.mean[i] + "</li>"
+                        for (i in analysis.mfcc){
+                            msg += "<li>" + analysis.mfcc[i] + "</li>"
                         }
                         msg += "</ul>";
                         displayMessage(msg,'resp1')
@@ -46,7 +45,6 @@
                         // When we have printed the analysis, ask for similar sounds
                         sound.getSimilar(function(sounds){
                             msg += "<strong>Similar sounds:</strong><ul>";
-                            
                             for (i =0;i<=10;i++){                                
                                 var snd = sounds.getSound(i);
                                 msg += "<li>" + snd.id + ": " + snd.url + "</li>"
@@ -54,73 +52,66 @@
                             msg += "</ul>";
 
                             displayMessage(msg,'resp1')
-                        }, function(){ displayError("Similar sounds could not be retrieved.")},
-                        {fields:fields});
+                        }, function(){ displayError("Similar sounds could not be retrieved.")}, {fields: "id,url"});
                     }, function(){ displayError("Analysis could not be retrieved.")},
                     true);// showAll
                 }, function(){ displayError("Sound could not be retrieved.")}
         );
         
-        
         // Example 2
-        // Example of searching sounds: querying the freesound db for sounds and retrieving lowlevel descriptors
+        // Example of searching sounds: querying the freesound db for sounds and retrieving some audio descriptors
         var query = "violoncello"
         var page = 1
         var filter = "tag:tenuto duration:[1.0 TO 15.0]"
         var sort = "rating_desc"
-        var descriptors = "lowlevel.spectral_centroid"
-        freesound.textSearch(query, {page:page, filter:filter, sort:sort, fields:fields, descriptors: descriptors},
+        var fields = 'id,name,url,analysis,username,spectral_centroid';
+        freesound.search(query, {page:page, filter:filter, sort:sort, fields:fields},
             function(sounds){
                 var msg = ""
-                
                 msg = "<h3>Searching for: " + query + "</h3>"
                 msg += "With filter: " + filter +" and sorting: " + sort + "<br>"
                 msg += "Num results: " + sounds.count + "<br><ul>"
                 for (i =0;i<=10;i++){  
                     var snd = sounds.getSound(i);
-                    msg += "<li>" + snd.name + " by " + snd.username + " with spectral centroid mean value: " + snd.analysis.lowlevel.spectral_centroid.mean.toString() + "</li>"
+                    msg += "<li>" + snd.name + " by " + snd.username + " with spectral centroid mean value: " + snd.spectral_centroid.toString() + "</li>"
                 }
                 msg += "</ul>"
                 displayMessage(msg,"resp2")
             },function(){ displayError("Error while searching...")}
         );
         
-        // Example 3
-        // Example of content based searching
-        var t = '.lowlevel.pitch_salience.mean:1.0 .lowlevel.pitch.mean:440';
-        var f = ".lowlevel.pitch.var:[* TO 20] AND .metadata.audio_properties.length:[1 TO 10]";
-        var page_size  = 10;
         
-        freesound.contentSearch({target:t,filter:f, page_size : page_size, fields:fields},
+        // Example 3
+        // Example of sorting sounds using some audio descriptors target, and filtering using audio descriptors
+        var sortingTarget = "pitch_salience:1.0,pitch:440"
+        var filter = "pitch_var:[0 TO 20] AND duration:[1 TO 10] AND tag:single-note";
+        var page_size  = 10;
+        var fields = 'id,name,url,username,pitch,pitch_salience,pitch_var,duration,tags';
+        freesound.search("", {filter:filter, page_size:page_size, fields:fields, sort:sortingTarget},
             function(sounds){                
                 var msg = ""
-                msg = "<h3>Content based searching</h3>"
-                msg += "Target: " + t +"<br>"
-                msg += "Filter: " + f +"<br>"
+                msg = "<h3>Searching sounds by specifying audio descriptors as a target, and filtering by audio descriptor values and metadata</h3>"
+                msg += "Filter: " + filter +"<br>"
                 msg += "Fields: " + fields +"<br>"
                 msg += "Num results: " + sounds.count + "<br><ul>"
-                msg += "<li> ---------- PAGE 1 ---------- </li>"
+                msg += "---------- PAGE 1 ----------"
                 for (i in sounds.results){                                        
-                    msg += "<li>" +  sounds.results[i].id+ " | " +
-                        sounds.results[i].name + " | " + sounds.results[i].url + "</li>"
+                    msg += "<pre>" +  JSON.stringify(sounds.results[i], null, 2) + "</pre>"
                 }
-                msg += "</ul>"
                 displayMessage(msg,"resp3")
 
                 // Once we got the first page of results, go to the following one
                 sounds.nextPage(
                         function(sounds){
-                            msg += "<ul><li> ---------- PAGE 2 ---------- </li>"
+                            msg += "---------- PAGE 2 ----------"
                             for (i in sounds.results){
                                 var j = parseInt(i);
-                                msg += "<li>" +  sounds.results[j].id.toString(10) + 
-                                    " | " + sounds.results[j].name + " | " + sounds.results[j].url + "</li>"
+                                msg += "<pre>" +  JSON.stringify(sounds.results[j], null, 2) + "</pre>"
                             }
-                            msg += "</ul>"
                             displayMessage(msg,"resp3")
                         },
                         function(){ displayError("Error getting next page...")})
-            },function(){ displayError("Error while content based searching...")}
+            },function(e){ console.log(e)}
         );
 
         
@@ -131,7 +122,7 @@
         var min_lon = 2.005176544189453;
         var max_lon = 2.334766387939453;
         filterString = "geotag:\"Intersects("+min_lon.toFixed(3)+" "+min_lat.toFixed(3)+" "+max_lon.toFixed(3)+" "+max_lat.toFixed(3)+")\"";
-        freesound.textSearch("",{filter:filterString, fields:fields},
+        freesound.search("",{filter:filterString, fields:fields},
                 function(sounds){
                     var msg = ""
                     msg = "<h3>Geoquerying</h3>"
@@ -149,7 +140,6 @@
                     displayMessage(msg,"resp4")
                 },function(err){ console.log(err);displayError("Error while geoquerying...")}
         );
-
         
         freesound.getUser("Jovica",
             function(user){
